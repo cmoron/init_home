@@ -1,25 +1,24 @@
 #!/usr/bin/env bash
 
-# =====================================
-# Initializes a fresh home dir with
-# personal configuration files.
-# =====================================
+# Initializes a fresh home dir with personal configuration files.
 
 set -o errexit
 
-# =====================================
 # Define constants
-# =====================================
-readonly CONF_DIR="${HOME}/conf"
-readonly DEV_DIR="${HOME}/dev"
-readonly DL_DIR="${HOME}/dl"
-readonly DOX_DIR="${HOME}/dox"
-readonly PIX_DIR="${HOME}/pix"
-readonly TOOLS_DIR="${HOME}/tools"
+readonly DIRS_TO_CREATE=(
+    "${HOME}/conf"
+    "${HOME}/src"
+    "${HOME}/dl"
+    "${HOME}/docs"
+    "${HOME}/pics"
+    "${HOME}/tools"
+)
 
-readonly VIM_CFG_DIR="${CONF_DIR}/vimcfg"
-readonly FIREFOX_CFG_DIR="${CONF_DIR}/firefoxcfg"
-readonly DOTFILES_CFG_DIR="${CONF_DIR}/dotfiles"
+readonly CONF_REPOS=(
+    "dotfiles"
+    "vimcfg"
+    "firefoxcfg"
+)
 
 readonly GITHUB_REPOS_URL="https://github.com/cmoron/"
 
@@ -28,55 +27,30 @@ CURRENT_PATH="$PWD"
 [[ -z "$XDG_CONFIG_HOME" ]] && CONFIG_HOME="${HOME}/.config" || CONFIG_HOME="$XDG_CONFIG_HOME"
 LOCAL_HOME="${HOME}/.local"
 
-# =====================================
 # Initialize home dir
-# =====================================
-[[ ! -e "$CONF_DIR" ]] && mkdir "$CONF_DIR"
-[[ ! -e "$CONF_DIR" ]] && mkdir "$CONF_DIR"
-[[ ! -e "$DEV_DIR" ]] && mkdir "$DEV_DIR"
-[[ ! -e "$DL_DIR" ]] && mkdir "$DL_DIR"
-[[ ! -e "$DOX_DIR" ]] && mkdir "$DOX_DIR"
-[[ ! -e "$PIX_DIR" ]] && mkdir "$PIX_DIR"
-[[ ! -e "$TOOLS_DIR" ]] && mkdir "$TOOLS_DIR"
-[[ ! -e "$CONFIG_HOME" ]] && mkdir "$CONFIG_HOME"
+for dir in "${DIRS_TO_CREATE[@]}"; do
+    [[ ! -e "$dir" ]] && mkdir "$dir"
+done
 
-# =====================================
 # Git clone tools conf from github
-# =====================================
-echo "Getting dotfiles."
-if [[ -e "$DOTFILES_CFG_DIR" ]]; then
-    cd "$DOTFILES_CFG_DIR"
-    git pull
-    cd "$CURRENT_PATH"
-else
-    git clone "${GITHUB_REPOS_URL}dotfiles.git" "$DOTFILES_CFG_DIR"
-fi
+for repo in "${CONF_REPOS[@]}"; do
+    echo "Getting $repo configuration files."
+    repo_dir="${HOME}/conf/${repo}"
+    if [[ -e "$repo_dir" ]]; then
+        (cd "$repo_dir" && git pull) || { echo "Failed to pull $repo"; exit 1; }
+        [[ -f "$repo_dir/.gitmodules" ]] && (cd "$repo_dir" && git submodule update)
+    else
+        git clone "${GITHUB_REPOS_URL}${repo}.git" "$repo_dir" || { echo "Failed to clone $repo"; exit 1; }
+        [[ -f "$repo_dir/.gitmodules" ]] && (cd "$repo_dir" && git submodule init && git submodule update)
+    fi
+done
 
-echo "Getting vim configuration files."
-if [[ -e "$VIM_CFG_DIR" ]]; then
-    cd "$VIM_CFG_DIR"
-    git pull
-    git submodule update
-    cd "$CURRENT_PATH"
-else
-    git clone "${GITHUB_REPOS_URL}vimcfg.git" "$VIM_CFG_DIR"
-    cd "$VIM_CFG_DIR"
-    git submodule init
-    git submodule update
-    cd "$CURRENT_PATH"
-fi
-
-echo "Getting firefox configuration files."
-if [[ -e "$FIREFOX_CFG_DIR" ]]; then
-    cd "$FIREFOX_CFG_DIR"
-    git pull
-    cd "$CURRENT_PATH"
-else
-    git clone "${GITHUB_REPOS_URL}firefoxcfg.git" "$FIREFOX_CFG_DIR"
-fi
-
-
+# Creating symbolc links for configuration files
 echo "Creating configuration files."
+[[ ! -e "$CONFIG_HOME" ]] && mkdir -p "$CONFIG_HOME"
+[[ ! -e "$LOCAL_HOME" ]] && mkdir -p "$LOCAL_HOME"
+[[ ! -e "$LOCAL_HOME/bin" ]] && mkdir -p "$LOCAL_HOME/bin"
+[[ ! -e "$LOCAL_HOME/share/fonts" ]] && mkdir -p "$LOCAL_HOME/share/fonts"
 
 ln -sf "${DOTFILES_CFG_DIR}/.profile" "${HOME}/.profile"
 ln -sf "${DOTFILES_CFG_DIR}/.xprofile" "${HOME}/.xprofile"
@@ -94,4 +68,5 @@ ln -sf "${DOTFILES_CFG_DIR}/.config/wall.jpg" "${CONFIG_HOME}/wall.jpg"
 ln -sf "${DOTFILES_CFG_DIR}/.local/bin" "${LOCAL_HOME}/bin"
 ln -sf "${DOTFILES_CFG_DIR}/.local/share/fonts" "${LOCAL_HOME}/share/fonts"
 
-cd "$CURRENT_PATH"
+trap 'echo "Exiting due to error"; exit 1' ERR
+trap 'echo "Script completed successfully"; exit 0' EXIT
