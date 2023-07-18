@@ -20,9 +20,11 @@ readonly CONF_REPOS=(
     "firefoxcfg"
 )
 
-readonly GITHUB_REPOS_URL="https://github.com/cmoron/"
+readonly CONF_DIR="${HOME}/conf"
+readonly DOTFILES_CFG_DIR="$CONF_DIR/dotfiles"
+readonly VIM_CFG_DIR="$CONF_DIR/vimcfg"
 
-CURRENT_PATH="$PWD"
+readonly GITHUB_REPOS_URL="https://github.com/cmoron/"
 
 [[ -z "$XDG_CONFIG_HOME" ]] && CONFIG_HOME="${HOME}/.config" || CONFIG_HOME="$XDG_CONFIG_HOME"
 LOCAL_HOME="${HOME}/.local"
@@ -35,13 +37,13 @@ done
 # Git clone tools conf from github
 for repo in "${CONF_REPOS[@]}"; do
     echo "Getting $repo configuration files."
-    repo_dir="${HOME}/conf/${repo}"
+    repo_dir="${CONF_DIR}/${repo}"
     if [[ -e "$repo_dir" ]]; then
         (cd "$repo_dir" && git pull) || { echo "Failed to pull $repo"; exit 1; }
-        [[ -f "$repo_dir/.gitmodules" ]] && (cd "$repo_dir" && git submodule update)
+        [[ -f "$repo_dir/.gitmodules" ]] && (cd "$repo_dir" && git submodule update --recursive)
     else
         git clone "${GITHUB_REPOS_URL}${repo}.git" "$repo_dir" || { echo "Failed to clone $repo"; exit 1; }
-        [[ -f "$repo_dir/.gitmodules" ]] && (cd "$repo_dir" && git submodule init && git submodule update)
+        [[ -f "$repo_dir/.gitmodules" ]] && (cd "$repo_dir" && git submodule init && git submodule update --recursive)
     fi
 done
 
@@ -49,8 +51,7 @@ done
 echo "Creating configuration files."
 [[ ! -e "$CONFIG_HOME" ]] && mkdir -p "$CONFIG_HOME"
 [[ ! -e "$LOCAL_HOME" ]] && mkdir -p "$LOCAL_HOME"
-[[ ! -e "$LOCAL_HOME/bin" ]] && mkdir -p "$LOCAL_HOME/bin"
-[[ ! -e "$LOCAL_HOME/share/fonts" ]] && mkdir -p "$LOCAL_HOME/share/fonts"
+[[ ! -e "$LOCAL_HOME/share" ]] && mkdir -p "$LOCAL_HOME/share"
 
 ln -sf "${DOTFILES_CFG_DIR}/.profile" "${HOME}/.profile"
 ln -sf "${DOTFILES_CFG_DIR}/.xprofile" "${HOME}/.xprofile"
@@ -67,6 +68,7 @@ ln -sf "${DOTFILES_CFG_DIR}/.config/wall.jpg" "${CONFIG_HOME}/wall.jpg"
 
 ln -sf "${DOTFILES_CFG_DIR}/.local/bin" "${LOCAL_HOME}/bin"
 ln -sf "${DOTFILES_CFG_DIR}/.local/share/fonts" "${LOCAL_HOME}/share/fonts"
+ln -sf "${DOTFILES_CFG_DIR}/.local/shell" "${LOCAL_HOME}/shell"
 
 trap 'echo "Exiting due to error"; exit 1' ERR
 trap 'echo "Script completed successfully"; exit 0' EXIT
